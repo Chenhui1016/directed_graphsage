@@ -7,14 +7,16 @@ import numpy as np
 import time
 import random
 from sklearn.metrics import f1_score
+from sklearn.metrics import recall_score
 from collections import defaultdict
 
 from graphsage.encoders import Encoder
 from graphsage.aggregators import MeanAggregator
+from graphsage.plot_confusion_matrix import plot_confusion_matrix
 
 """
 Simple supervised GraphSAGE model for directed graph as well as examples running the model
-on the Cora datasets.
+on the EDA datasets.
 """
 
 class SupervisedGraphSage(nn.Module):
@@ -90,35 +92,62 @@ def run_cora():
 
     optimizer = torch.optim.Adam(filter(lambda p : p.requires_grad, graphsage.parameters()), lr=0.001)
     times = []
-    for batch in range(300):
-        batch_nodes = train[:256]
-        random.shuffle(train)
-        start_time = time.time()
-        optimizer.zero_grad()
-        loss = graphsage.loss(batch_nodes,
+    epoch = 100
+    batch_size = 256
+    num_batch = len(train)//batch_size
+    best_loss = 1e9
+    cnt_wait = 0
+    patience = 50
+    flag = 0
+    for e in range(epoch):
+        for i in range(num_batch):
+            if i < num_batch-1:
+                batch_nodes = train[i*batch_size: i*batch_size + batch_size]
+            else:
+                batch_nodes = train[i*batch_size: len(train)]
+            start_time = time.time()
+            optimizer.zero_grad()
+            loss = graphsage.loss(batch_nodes,\
                 Variable(torch.LongTensor(labels[np.array(batch_nodes)])))
-        loss.backward()
-        optimizer.step()
-        end_time = time.time()
-        times.append(end_time-start_time)
-        print(batch, loss.item())
+            loss.backward()
+            optimizer.step()
+            end_time = time.time()
+            times.append(end_time-start_time)
+            print("The {}-th epoch ".format(e), "{}-th batch".format(i), "Loss: ", loss.item())
+            if loss.item() < best_loss:
+                best_loss = loss.item()
+                cnt_wait = 0
+            else:
+                cnt_wait += 1
 
-    if len(test) < 2560:
+            if cnt_wait == patience:
+                print("early stopping!")
+                flag = 1
+                break
+        if flag == 1:
+            break
+
+    if len(test) < 100000:
         test_output = graphsage.forward(test)
-        print("Test F1:", f1_score(labels[test], test_output.data.numpy().argmax(axis=1), average="micro"))
+        #print("Test F1:", f1_score(labels[test], test_output.data.numpy().argmax(axis=1), average="micro"))
+        print("Test F1:", recall_score(labels[test], test_output.data.numpy().argmax(axis=1), average="micro"))
+        plot_confusion_matrix(labels[test], test_output.data.numpy().argmax(axis=1), np.array([0, 1]), title='Confusion matrix, without normalization')
 
     ### Inference on large graph, avoid out of memory
     else:
         chunk_size = 256
         pred = []
-        for j in range(int(len(test)/chunk_size)):
-            if j < (int(len(test)/chunk_size)-1):
+        for j in range(len(test)//chunk_size):
+            if j < (len(test)//chunk_size-1):
                 test_output = graphsage.forward(test[j*chunk_size:(j+1)*chunk_size])
             else:
                 test_output = graphsage.forward(test[j*chunk_size:len(test)])
             pred += (test_output.data.numpy().argmax(axis=1)).tolist()
             print("Inference on the {}-th chunk".format(j))
-        print("Test F1:", f1_score(labels[test], np.asarray(pred), average="micro"))
+        #print("Test F1:", f1_score(labels[test], np.asarray(pred), average="micro"))
+        print("Test F1:", recall_score(labels[test], np.asarray(pred), average="micro"))
+        plot_confusion_matrix(labels[test], np.asarray(pred), np.array([0, 1]), title='Confusion matrix, without normalization')
+
     print("Average batch time:", np.mean(times))
 
 
