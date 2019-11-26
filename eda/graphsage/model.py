@@ -64,7 +64,7 @@ def load_cora():
             adj_lists[paper2]["in"].add(paper1)
     return feat_data, labels, adj_lists, train, test
 
-def run_cora():
+def main():
     np.random.seed(1)
     random.seed(1)
     feat_data, labels, adj_lists, train, test = load_cora()
@@ -92,8 +92,8 @@ def run_cora():
 
     optimizer = torch.optim.Adam(filter(lambda p : p.requires_grad, graphsage.parameters()), lr=0.001)
     times = []
-    epoch = 100
-    batch_size = 256
+    epoch = 10
+    batch_size = 512
     num_batch = len(train)//batch_size
     best_loss = 1e9
     cnt_wait = 0
@@ -114,6 +114,8 @@ def run_cora():
             end_time = time.time()
             times.append(end_time-start_time)
             print("The {}-th epoch ".format(e), "{}-th batch".format(i), "Loss: ", loss.item())
+
+            '''
             if loss.item() < best_loss:
                 best_loss = loss.item()
                 cnt_wait = 0
@@ -124,8 +126,11 @@ def run_cora():
                 print("early stopping!")
                 flag = 1
                 break
+            '''
+        '''
         if flag == 1:
             break
+        '''
 
     if len(test) < 100000:
         test_output = graphsage.forward(test)
@@ -135,7 +140,7 @@ def run_cora():
 
     ### Inference on large graph, avoid out of memory
     else:
-        chunk_size = 256
+        chunk_size = 512
         pred = []
         for j in range(len(test)//chunk_size):
             if j < (len(test)//chunk_size-1):
@@ -152,4 +157,4 @@ def run_cora():
 
 
 if __name__ == "__main__":
-    run_cora()
+    main()
