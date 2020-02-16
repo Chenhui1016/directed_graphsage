@@ -95,11 +95,10 @@ def main():
 
     optimizer = torch.optim.Adam(filter(lambda p : p.requires_grad, graphsage.parameters()), lr=0.01)
     times = []
-    epoch = 10000
-    num_batch = 1
+    epoch = 500
     best = 1e9
     cnt_wait = 0
-    patience = 50
+    patience = 30
     best_t = 0
 
     train_pair1 = []
