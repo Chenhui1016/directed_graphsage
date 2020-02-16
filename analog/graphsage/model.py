@@ -119,7 +119,7 @@ def main():
 
         if loss < best:
             best = loss
-            best_t = epoch
+            best_t = e
             cnt_wait = 0
             torch.save(graphsage.state_dict(), 'best_model.pkl')
 
