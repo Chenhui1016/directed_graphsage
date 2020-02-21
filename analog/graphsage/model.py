@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn import init
 from torch.autograd import Variable
+import os
 
 import numpy as np
 import time
@@ -82,7 +83,7 @@ def main():
     features.weight = nn.Parameter(torch.FloatTensor(feat_data), requires_grad=False)
     #features.cuda()
 
-    agg1 = MeanAggregator(features, cuda=True)
+    agg1 = MeanAggregator(features, cuda=False)
     enc1 = Encoder(features, feat_dim, hidden_dim, adj_lists, agg1, gcn=False, cuda=False)
     agg2 = MeanAggregator(lambda nodes : enc1(nodes).t(), cuda=False)
     enc2 = Encoder(lambda nodes : enc1(nodes).t(), enc1.embed_dim, hidden_dim, adj_lists, agg2,
@@ -93,12 +94,12 @@ def main():
     graphsage = SupervisedGraphSage(hidden_dim, enc2)
     #graphsage.cuda()
 
-    optimizer = torch.optim.Adam(filter(lambda p : p.requires_grad, graphsage.parameters()), lr=0.01)
+    optimizer = torch.optim.Adam(filter(lambda p : p.requires_grad, graphsage.parameters()), lr=0.01, weight_decay=1e-5)
     times = []
     epoch = 500
     best = 1e9
     cnt_wait = 0
-    patience = 30
+    patience = 25
     best_t = 0
 
     train_pair1 = []
@@ -140,7 +141,7 @@ def main():
     graphsage.load_state_dict(torch.load('best_model.pkl'))
 
     if len(test) < 10000000000:
-        test_output = graphsage.forward(test_pair1, test_pair2)
+        test_output = torch.sigmoid(graphsage.forward(test_pair1, test_pair2))
         pred = np.where(test_output.data.numpy() < 0.5, 0, 1)
         print("Test F1:", recall_score(np.asarray(test_label), pred, average="micro"))
         plot_confusion_matrix(np.asarray(test_label), pred, np.array([0, 1]), title='Confusion matrix, without normalization')
