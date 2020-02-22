@@ -162,6 +162,8 @@ if __name__ == '__main__':
                 G.add_edge(edge[0]+num_nodes, edge[1]+num_nodes)
 
         node_pairs = list(combinations(list(G.nodes()), 2)) # all possible node pairs
+        # only add neg pair whose nodes are from the same subgraph 
+        # node_pairs = list(combinations([t for t in range(num_nodes, num_nodes+len(graph.nodes))], 2))
         random.seed(1)
         random.shuffle(node_pairs)
         neg_pairs = []
