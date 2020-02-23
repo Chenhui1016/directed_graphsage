@@ -152,7 +152,8 @@ if __name__ == '__main__':
             node_att[g.id+num_nodes] = g.attributes['cell']
             node_type.append(g.attributes['cell'])
             #node_is_pin.append(np.array([1, 0]))
-            G.add_node(g.id+num_nodes)
+            #G.add_node(g.id+num_nodes)
+            # comment lines below and uncomment line above if using pin info
             for p in g.pins:
                 pin_map[p] = g.id
         for n in graph.nets:
@@ -194,6 +195,7 @@ if __name__ == '__main__':
         all_pairs += pos_pairs + neg_pairs
         num_nodes += len(graph.nodes)
 
+        # uncomment lines below if using pin info
         '''for p in graph.pins:
             node_att[p.id+num_nodes] = p.attributes['type']
             node_type.append(p.attributes['type'])
@@ -219,6 +221,7 @@ if __name__ == '__main__':
     for x in node_type:
         feat.append(convert(all_type[x], num_types))
     #feats = np.array([np.hstack((node_is_pin[t], np.array(feat[t]))) for t in range(len(feat))])
+    # comment line below and comment line above if using pin info
     feats = np.array([np.array(x) for x in feat])
 
     # save all files
