@@ -161,9 +161,9 @@ if __name__ == '__main__':
             for edge in edges:
                 G.add_edge(edge[0]+num_nodes, edge[1]+num_nodes)
 
-        node_pairs = list(combinations(list(G.nodes()), 2)) # all possible node pairs
+        #node_pairs = list(combinations(list(G.nodes()), 2)) # all possible node pairs
         # only add neg pair whose nodes are from the same subgraph 
-        # node_pairs = list(combinations([t for t in range(num_nodes, num_nodes+len(graph.nodes))], 2))
+        node_pairs = list(combinations([t for t in range(num_nodes, num_nodes+len(graph.nodes))], 2))
         random.seed(1)
         random.shuffle(node_pairs)
         neg_pairs = []
@@ -176,7 +176,7 @@ if __name__ == '__main__':
                 # first two cols are node ids, the third col is the label, the last col is train or test
             else:
                 neg_pairs.append([pair[0], pair[1], 0, 0])
-            if len(neg_pairs) >neg_size*len(label):   # select negative samples, whose size is controled by neg_size
+            if len(neg_pairs) >neg_size*len(label) and train:   # select negative samples, whose size is controled by neg_size
                 break
 
         pos_pairs = []
