@@ -170,11 +170,6 @@ def main():
     if len(test) < 100000:
         test_output = torch.sigmoid(graphsage.forward(test_pair1, test_pair2))
         pred = np.where(test_output.data.numpy() < 0.5, 0, 1)
-        print("Test F1:", f1_score(np.asarray(test_label), pred, average="micro", labels=[1]))
-        print("Test Recall:", recall_score(np.asarray(test_label), pred, average="micro", labels=[1]))
-        print("Test Precision:", precision_score(np.asarray(test_label), pred, average="micro", labels=[1]))
-        print("False Positive Rate:", 1-recall_score(np.asarray(test_label), pred, average="micro", labels=[0]))
-        plot_confusion_matrix(np.asarray(test_label), pred, np.array([0, 1]), title='Confusion matrix, without normalization')
 
     ### Inference on large graph, avoid out of memory
     else:
@@ -188,13 +183,13 @@ def main():
                 pair1 = test_pair1[j*chunk_size:len(test_pair1)]
                 pair2 = test_pair2[j*chunk_size:len(test_pair2)]
             test_output = torch.sigmoid(graphsage.forward(pair1, pair2))
-            pred += np.where(test_output.data.numpy() < 0.5, 0, 1).tolist()
+            pred = np.concatenate((pred, np.where(test_output.data.numpy() < 0.5, 0, 1)), axis=None)
             print("Inference on the {}-th chunk".format(j))
-        print("Test F1:", f1_score(np.asarray(test_label), np.asarray(pred), average="micro", labels=[1]))
-        print("Test Recall:", recall_score(np.asarray(test_label), np.asarray(pred), average="micro", labels=[1]))
-        print("Test Precision:", precision_score(np.asarray(test_label), np.asarray(pred), average="micro", labels=[1]))
-        print("False Positive Rate:", 1-recall_score(np.asarray(test_label), np.asarray(pred), average="micro", labels=[0]))
-        plot_confusion_matrix(np.asarray(test_label), np.asarray(pred), np.array([0, 1]), title='Confusion matrix, without normalization')
+    print("Test F1:", f1_score(np.asarray(test_label), pred, average="micro", labels=[1]))
+    print("Test Recall:", recall_score(np.asarray(test_label), pred, average="micro", labels=[1]))
+    print("Test Precision:", precision_score(np.asarray(test_label), pred, average="micro", labels=[1]))
+    print("False Positive Rate:", 1-recall_score(np.asarray(test_label), pred, average="micro", labels=[0]))
+    plot_confusion_matrix(np.asarray(test_label), pred, np.array([0, 1]), title='Confusion matrix, without normalization')
 
     print("Average batch time:", np.mean(times))
 
