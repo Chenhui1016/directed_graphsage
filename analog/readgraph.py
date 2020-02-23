@@ -137,6 +137,7 @@ if __name__ == '__main__':
     num_nodes = 0   # used to merge subgraphs by changing node indices
     all_pairs = []  # store all pos and neg node pairs
     node_type = []  # store types of all nodes
+    node_is_pin = []
     ratio = 0.7     # #training_samples/#total_samples
     for i in range(len(dataX)):
         train = i < int(len(dataX)*ratio)   # split training and test set
@@ -150,7 +151,9 @@ if __name__ == '__main__':
         for g in graph.nodes:
             node_att[g.id+num_nodes] = g.attributes['cell']
             node_type.append(g.attributes['cell'])
-            for p in g.pins:
+            node_is_pin.append(np.array([1, 0]))
+            G.add_node(g.id+num_nodes)
+            '''for p in g.pins:
                 pin_map[p] = g.id
         for n in graph.nets:
             node_list = []
@@ -159,10 +162,10 @@ if __name__ == '__main__':
                     node_list.append(pin_map[pin])
             edges = combinations(node_list, 2)
             for edge in edges:
-                G.add_edge(edge[0]+num_nodes, edge[1]+num_nodes)
+                G.add_edge(edge[0]+num_nodes, edge[1]+num_nodes)'''
 
         #node_pairs = list(combinations(list(G.nodes()), 2)) # all possible node pairs
-        # only add neg pair whose nodes are from the same subgraph 
+        # only add neg pair whose nodes are from the same subgraph
         node_pairs = list(combinations([t for t in range(num_nodes, num_nodes+len(graph.nodes))], 2))
         random.seed(1)
         random.shuffle(node_pairs)
@@ -191,6 +194,19 @@ if __name__ == '__main__':
         all_pairs += pos_pairs + neg_pairs
         num_nodes += len(graph.nodes)
 
+        for p in graph.pins:
+            node_att[p.id+num_nodes] = p.attributes['type']
+            node_type.append(p.attributes['type'])
+            node_is_pin.append(np.array([0, 1]))
+            G.add_node(p.id+num_nodes)
+            G.add_edge(p.node_id+num_nodes-len(graph.nodes), p.id+num_nodes)
+        for n in graph.nets:
+            edges = combinations(n.pins, 2)
+            for edge in edges:
+                G.add_edge(edge[0]+num_nodes, edge[1]+num_nodes)
+
+        num_nodes += len(graph.pins)
+
         #draw_graph(G, node_att, label)
 
     # convert node types into one-hot vector
@@ -202,7 +218,7 @@ if __name__ == '__main__':
     feat = []
     for x in node_type:
         feat.append(convert(all_type[x], num_types))
-    feats = np.array([np.array(x) for x in feat])
+    feats = np.array([np.hstack((node_is_pin[t], np.array(feat[t]))) for t in range(len(feat))])
 
     # save all files
     np.save(save_dir+"feats.npy", feats)
