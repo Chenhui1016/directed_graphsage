@@ -151,7 +151,7 @@ if __name__ == '__main__':
         for g in graph.nodes:
             node_att[g.id+num_nodes] = g.attributes['cell']
             node_type.append(g.attributes['cell'])
-            node_is_pin.append(np.array([1, 0]))
+            #node_is_pin.append(np.array([1, 0]))
             G.add_node(g.id+num_nodes)
             '''for p in g.pins:
                 pin_map[p] = g.id
@@ -194,7 +194,7 @@ if __name__ == '__main__':
         all_pairs += pos_pairs + neg_pairs
         num_nodes += len(graph.nodes)
 
-        for p in graph.pins:
+        '''for p in graph.pins:
             node_att[p.id+num_nodes] = p.attributes['type']
             node_type.append(p.attributes['type'])
             node_is_pin.append(np.array([0, 1]))
@@ -205,7 +205,7 @@ if __name__ == '__main__':
             for edge in edges:
                 G.add_edge(edge[0]+num_nodes, edge[1]+num_nodes)
 
-        num_nodes += len(graph.pins)
+        num_nodes += len(graph.pins)'''
 
         #draw_graph(G, node_att, label)
 
@@ -218,7 +218,8 @@ if __name__ == '__main__':
     feat = []
     for x in node_type:
         feat.append(convert(all_type[x], num_types))
-    feats = np.array([np.hstack((node_is_pin[t], np.array(feat[t]))) for t in range(len(feat))])
+    #feats = np.array([np.hstack((node_is_pin[t], np.array(feat[t]))) for t in range(len(feat))])
+    feats = np.array([np.array(x) for x in feat])
 
     # save all files
     np.save(save_dir+"feats.npy", feats)
