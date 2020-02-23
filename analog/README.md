@@ -15,7 +15,7 @@ It assumes that CUDA is not being used, but modifying the run functions in `mode
 
 #### Dataset generation
 
-Ececute `python readgraph.py data.pkl`
+Execute `python readgraph.py data.pkl`
 Please refer to the file format in data/.
 
 #### Imbanlanced dataset

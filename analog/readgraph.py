@@ -139,6 +139,7 @@ if __name__ == '__main__':
     node_type = []  # store types of all nodes
     ratio = 0.7     # #training_samples/#total_samples
     for i in range(len(dataX)):
+        sub_G = nx.Graph()
         train = i < int(len(dataX)*ratio)   # split training and test set
             #train = True
         #else:
@@ -160,22 +161,24 @@ if __name__ == '__main__':
             edges = combinations(node_list, 2)
             for edge in edges:
                 G.add_edge(edge[0]+num_nodes, edge[1]+num_nodes)
+                sub_G.add_edge(edge[0]+num_nodes, edge[1]+num_nodes)
 
-        node_pairs = list(combinations(list(G.nodes()), 2)) # all possible node pairs
+        node_pairs = list(combinations(list(sub_G.nodes()), 2)) # all possible node pairs
         random.seed(1)
         random.shuffle(node_pairs)
         neg_pairs = []
-        neg_size = 20
+        neg_size = 20000000000
         for pair in node_pairs:
             if [pair[0]-num_nodes, pair[1]-num_nodes] in label:
                 continue
             if train:
-                neg_pairs.append([pair[0], pair[1], 0, 1])
+                if len(neg_pairs) > neg_size*len(label):
+                    break
+                else:
+                    neg_pairs.append([pair[0], pair[1], 0, 1])
                 # first two cols are node ids, the third col is the label, the last col is train or test
             else:
                 neg_pairs.append([pair[0], pair[1], 0, 0])
-            if len(neg_pairs) >neg_size*len(label):   # select negative samples, whose size is controled by neg_size
-                break
 
         pos_pairs = []
         for l in label:
