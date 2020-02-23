@@ -134,8 +134,9 @@ def main():
 
     if len(test) < 100000:
         test_output = graphsage.forward(test)
-        #print("Test F1:", f1_score(labels[test], test_output.data.numpy().argmax(axis=1), average="micro"))
-        print("Test F1:", recall_score(labels[test], test_output.data.numpy().argmax(axis=1), average="micro"))
+        print("Test F1:", f1_score(labels[test], test_output.data.numpy().argmax(axis=1), average="micro", labels=[1]))
+        print("Test Recall:", recall_score(labels[test], test_output.data.numpy().argmax(axis=1), average="micro", labels=[1]))
+        print("Test Precision:", precision_score(labels[test], test_output.data.numpy().argmax(axis=1), average="micro", labels=[1]))
         plot_confusion_matrix(labels[test], test_output.data.numpy().argmax(axis=1), np.array([0, 1]), title='Confusion matrix, without normalization')
 
     ### Inference on large graph, avoid out of memory
@@ -149,8 +150,9 @@ def main():
                 test_output = graphsage.forward(test[j*chunk_size:len(test)])
             pred += (test_output.data.numpy().argmax(axis=1)).tolist()
             print("Inference on the {}-th chunk".format(j))
-        #print("Test F1:", f1_score(labels[test], np.asarray(pred), average="micro"))
-        print("Test F1:", recall_score(labels[test], np.asarray(pred), average="micro"))
+        print("Test F1:", f1_score(labels[test], np.asarray(pred), average="micro", labels=[1]))
+        print("Test Recall:", recall_score(labels[test], np.asarray(pred), average="micro", labels=[1]))
+        print("Test Precision:", precision_score(labels[test], np.asarray(pred), average="micro", labels=[1]))
         plot_confusion_matrix(labels[test], np.asarray(pred), np.array([0, 1]), title='Confusion matrix, without normalization')
 
     print("Average batch time:", np.mean(times))

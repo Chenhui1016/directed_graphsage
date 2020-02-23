@@ -26,7 +26,7 @@ class SupervisedGraphSage(nn.Module):
     def __init__(self, num_classes, enc, edge_map):
         super(SupervisedGraphSage, self).__init__()
         self.enc = enc
-        self.xent = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([1]))
+        self.xent = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([16]))
 
         self.weight = nn.Parameter(torch.FloatTensor(num_classes, enc.embed_dim))
         init.xavier_uniform_(self.weight)
@@ -34,14 +34,14 @@ class SupervisedGraphSage(nn.Module):
         self.edge_map = edge_map
 
     def forward(self, edges):
-        node_list = []
+        node_list1 = []
+        node_list2 = []
         for e in edges:
-            node_list += self.edge_map[e]
-        node_embeds = (self.enc(node_list)).t()
-        half_length = len(node_list)/2
-        loc1 = (torch.BoolTensor([1,0])).repeat(int(half_length))
-        loc2 = (torch.BoolTensor([0,1])).repeat(int(half_length))
-        edge_embeds = (0.5 * (node_embeds[loc1] + node_embeds[loc2])).t()
+            node_list1 += [self.edge_map[e][0]]
+            node_list2 += [self.edge_map[e][1]]
+        node_embed1 = (self.enc(node_list1)).t()
+        node_embed2 = (self.enc(node_list2)).t()
+        edge_embeds = (0.5 * (node_embed1 + node_embed2)).t()
         scores = self.weight.mm(edge_embeds)
         return scores.t()
 
@@ -116,15 +116,15 @@ def main():
     graphsage = SupervisedGraphSage(1, enc2, edge_map)
     #graphsage.cuda()
 
-    optimizer = torch.optim.Adam(filter(lambda p : p.requires_grad, graphsage.parameters()), lr=0.0001)
+    optimizer = torch.optim.Adam(filter(lambda p : p.requires_grad, graphsage.parameters()), lr=0.001, weight_decay=1e-5)
     times = []
     epoch = 10
     batch_size = 512
     num_batch = len(train)//batch_size
-    best_loss = 1e9
+    best = 1e9
     cnt_wait = 0
-    patience = 50
-    flag = 0
+    patience = 20
+    best_t = 0
     for e in range(epoch):
         for i in range(num_batch):
             if i < num_batch-1:
@@ -141,35 +141,35 @@ def main():
             times.append(end_time-start_time)
             print("The {}-th epoch ".format(e), "{}-th batch".format(i), "Loss: ", loss.item())
 
-            '''
-            if loss.item() < best_loss:
+
+            if loss.item() < best:
                 best_loss = loss.item()
                 cnt_wait = 0
+                best_t = e
+                torch.save(graphsage.state_dict(), 'best_model.pkl')
             else:
                 cnt_wait += 1
 
             if cnt_wait == patience:
                 print("early stopping!")
-                flag = 1
                 break
-            '''
-        '''
-        if flag == 1:
-            break
-        '''
+
+    print('Loading {}th epoch'.format(best_t))
+    graphsage.load_state_dict(torch.load('best_model.pkl'))
 
     if len(test) < 100000:
-        test_output = graphsage.forward(test)
-        pred = (np.where(test_output.data.numpy() < 0.5, 0, 1)).tolist()
-        #print("Test F1:", f1_score(labels[test], test_output.data.numpy().argmax(axis=1), average="micro"))
-        #print("Test F1:", recall_score(labels[test], test_output.data.numpy().argmax(axis=1), average="micro"))
-        cm = plot_confusion_matrix(labels[test], np.asarray(pred), np.array([0, 1]), title='Confusion matrix, without normalization')
-        recall = cm[1][1]/(cm[1][0]+cm[1][1])
-        precision = cm[1][1]/(cm[1][1]+cm[0][1])
-        f1 = 2*recall*precision/(recall+precision)
-        print("Test F1 micro:", f1)
-        print("Test Recall micro:", recall)
-        print("Test Precision micro:", precision)
+        test_output = torch.sigmoid(graphsage.forward(test))
+        pred = (np.where(test_output.data.numpy() < 0.5, 0, 1))
+        print("Test F1:", f1_score(labels[test], pred, labels = [1], average="micro"))
+        print("Test Recall:", recall_score(labels[test], pred, labels = [1], average="micro"))
+        print("Test Precision:", precision_score(labels[test], pred, labels = [1], average="micro"))
+        cm = plot_confusion_matrix(labels[test], pred, np.array([0, 1]), title='Confusion matrix, without normalization')
+        #recall = cm[1][1]/(cm[1][0]+cm[1][1])
+        #precision = cm[1][1]/(cm[1][1]+cm[0][1])
+        #f1 = 2*recall*precision/(recall+precision)
+        #print("Test F1 micro:", f1)
+        #print("Test Recall micro:", recall)
+        #print("Test Precision micro:", precision)
 
     ### Inference on large graph, avoid out of memory
     else:
@@ -182,16 +182,10 @@ def main():
                 test_output = torch.sigmoid(graphsage.forward(test[j*chunk_size:len(test)]))
             pred += (np.where(test_output.data.numpy() < 0.5, 0, 1)).tolist()
             print("Inference on the {}-th chunk".format(j))
-        #print("Test F1 micro:", f1_score(labels[test], np.asarray(pred), average="weighted"))
-        #print("Test Recall micro:", recall_score(labels[test], np.asarray(pred), average="weighted"))
-        #print("Test Precision micro:", precision_score(labels[test], np.asarray(pred), average="weighted"))
         cm = plot_confusion_matrix(labels[test], np.asarray(pred), np.array([0, 1]), title='Confusion matrix, without normalization')
-        recall = cm[1][1]/(cm[1][0]+cm[1][1])
-        precision = cm[1][1]/(cm[1][1]+cm[0][1])
-        f1 = 2*recall*precision/(recall+precision)
-        print("Test F1 micro:", f1)
-        print("Test Recall micro:", recall)
-        print("Test Precision micro:", precision)
+        print("Test F1:", f1_score(labels[test], np.asarray(pred), labels = [1], average="micro"))
+        print("Test Recall:", recall_score(labels[test], np.asarray(pred), labels = [1], average="micro"))
+        print("Test Precision:", precision_score(labels[test], np.asarray(pred), labels = [1], average="micro"))
 
 
     print("Average batch time:", np.mean(times))

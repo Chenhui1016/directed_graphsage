@@ -143,7 +143,9 @@ def main():
     if len(test) < 10000000000:
         test_output = torch.sigmoid(graphsage.forward(test_pair1, test_pair2))
         pred = np.where(test_output.data.numpy() < 0.5, 0, 1)
-        print("Test F1:", recall_score(np.asarray(test_label), pred, average="micro"))
+        print("Test F1:", f1_score(np.asarray(test_label), pred, average="micro", labels=[1]))
+        print("Test Recall:", recall_score(np.asarray(test_label), pred, average="micro", labels=[1]))
+        print("Test Precision:", precision_score(np.asarray(test_label), pred, average="micro", labels=[1]))
         plot_confusion_matrix(np.asarray(test_label), pred, np.array([0, 1]), title='Confusion matrix, without normalization')
 
     ### Inference on large graph, avoid out of memory, not considered yet.
@@ -155,12 +157,9 @@ def main():
                 test_output = torch.sigmoid(graphsage.forward(test[j*chunk_size:(j+1)*chunk_size]))
             else:
                 test_output = torch.sigmoid(graphsage.forward(test[j*chunk_size:len(test)]))
-            pred += (np.where(test_output.data.numpy() < 0.5, 0, 1)).tolist()
+            pred += np.where(test_output.data.numpy() < 0.5, 0, 1)
             print("Inference on the {}-th chunk".format(j))
-        print("Test F1 micro:", f1_score(labels[test], np.asarray(pred), average="weighted"))
-        print("Test Recall micro:", recall_score(labels[test], np.asarray(pred), average="weighted"))
-        print("Test Precision micro:", precision_score(labels[test], np.asarray(pred), average="weighted"))
-        plot_confusion_matrix(labels[test], np.asarray(pred), np.array([0, 1]), title='Confusion matrix, without normalization')
+        plot_confusion_matrix(labels[test], pred, np.array([0, 1]), title='Confusion matrix, without normalization')
 
     print("Average batch time:", np.mean(times))
 

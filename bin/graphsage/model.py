@@ -25,7 +25,7 @@ class SupervisedGraphSage(nn.Module):
     def __init__(self, num_classes, enc):
         super(SupervisedGraphSage, self).__init__()
         self.enc = enc
-        self.xent = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([10]))
+        self.xent = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([1.5]))
 
         self.weight = nn.Parameter(torch.FloatTensor(num_classes, enc.embed_dim))
         init.xavier_uniform_(self.weight)
@@ -41,7 +41,7 @@ class SupervisedGraphSage(nn.Module):
         return self.xent(scores, labels)
 
 def load_cora():
-    data_dir = "trojand"
+    data_dir = "dataset"
     feat_data = np.load("{}/feats.npy".format(data_dir))
     num_nodes = feat_data.shape[0]
     labels = np.empty((num_nodes,1), dtype=np.int64)
@@ -72,7 +72,7 @@ def main():
     feat_data, labels, adj_lists, train, test = load_cora()
     num_nodes = feat_data.shape[0]
     feat_dim = feat_data.shape[1]
-    hidden_dim = 15
+    hidden_dim = 20
     features = nn.Embedding(num_nodes, feat_dim)
     features.weight = nn.Parameter(torch.FloatTensor(feat_data), requires_grad=False)
     #features.cuda()
@@ -96,21 +96,24 @@ def main():
     times = []
     epoch = 10
     batch_size = 512
-    num_batch = len(train)//batch_size
-    best_loss = 1e9
+    #num_batch = len(train)//batch_size
+    num_batch = 1
+    best = 1e9
     cnt_wait = 0
-    patience = 50
-    flag = 0
+    patience = 20
+    best_t = 0
     for e in range(epoch):
         for i in range(num_batch):
-            if i < num_batch-1:
-                batch_nodes = train[i*batch_size: i*batch_size + batch_size]
-            else:
-                batch_nodes = train[i*batch_size: len(train)]
+            #if i < num_batch-1:
+                #batch_nodes = train[i*batch_size: i*batch_size + batch_size]
+            #else:
+                #batch_nodes = train[i*batch_size: len(train)]
             start_time = time.time()
             optimizer.zero_grad()
-            loss = graphsage.loss(batch_nodes,\
-                Variable(torch.FloatTensor(labels[np.array(batch_nodes)])))
+            #loss = graphsage.loss(batch_nodes,\
+            loss = graphsage.loss(train,\
+                Variable(torch.FloatTensor(labels[np.array(train)])))
+                #Variable(torch.FloatTensor(labels[np.array(batch_nodes)])))
                 #Variable(torch.LongTensor(labels[np.array(batch_nodes)])))
             loss.backward()
             optimizer.step()
@@ -118,28 +121,29 @@ def main():
             times.append(end_time-start_time)
             print("The {}-th epoch ".format(e), "{}-th batch".format(i), "Loss: ", loss.item())
 
-            '''
-            if loss.item() < best_loss:
+
+            if loss.item() < best:
                 best_loss = loss.item()
                 cnt_wait = 0
+                best_t = e
+                torch.save(graphsage.state_dict(), 'best_model.pkl')
             else:
                 cnt_wait += 1
 
             if cnt_wait == patience:
                 print("early stopping!")
-                flag = 1
                 break
-            '''
-        '''
-        if flag == 1:
-            break
-        '''
+
+    print('Loading {}th epoch'.format(best_t))
+    graphsage.load_state_dict(torch.load('best_model.pkl'))
 
     if len(test) < 100000:
-        test_output = graphsage.forward(test)
-        #print("Test F1:", f1_score(labels[test], test_output.data.numpy().argmax(axis=1), average="micro"))
-        print("Test F1:", recall_score(labels[test], test_output.data.numpy().argmax(axis=1), average="micro"))
-        plot_confusion_matrix(labels[test], test_output.data.numpy().argmax(axis=1), np.array([0, 1]), title='Confusion matrix, without normalization')
+        test_output = torch.sigmoid(graphsage.forward(test))
+        pred = (np.where(test_output.data.numpy() < 0.5, 0, 1))
+        print("Test F1:", f1_score(labels[test], pred, average="micro", labels=[1]))
+        print("Test Recall:", recall_score(labels[test], pred, average="micro", labels=[1]))
+        print("Test Precision:", precision_score(labels[test], pred, average="micro", labels=[1]))
+        plot_confusion_matrix(labels[test], pred, np.array([0, 1]), title='Confusion matrix, without normalization')
 
     ### Inference on large graph, avoid out of memory
     else:
@@ -152,9 +156,9 @@ def main():
                 test_output = torch.sigmoid(graphsage.forward(test[j*chunk_size:len(test)]))
             pred += (np.where(test_output.data.numpy() < 0.5, 0, 1)).tolist()
             print("Inference on the {}-th chunk".format(j))
-        print("Test F1 micro:", f1_score(labels[test], np.asarray(pred), average="weighted"))
-        print("Test Recall micro:", recall_score(labels[test], np.asarray(pred), average="weighted"))
-        print("Test Precision micro:", precision_score(labels[test], np.asarray(pred), average="weighted"))
+        print("Test F1 micro:", f1_score(labels[test], np.asarray(pred), average="micro", labels=[1]))
+        print("Test Recall micro:", recall_score(labels[test], np.asarray(pred), average="micro", labels=[1]))
+        print("Test Precision micro:", precision_score(labels[test], np.asarray(pred), average="micro", labels=[1]))
         plot_confusion_matrix(labels[test], np.asarray(pred), np.array([0, 1]), title='Confusion matrix, without normalization')
 
     print("Average batch time:", np.mean(times))
