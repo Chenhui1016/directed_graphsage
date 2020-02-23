@@ -153,7 +153,7 @@ if __name__ == '__main__':
             node_type.append(g.attributes['cell'])
             #node_is_pin.append(np.array([1, 0]))
             G.add_node(g.id+num_nodes)
-            '''for p in g.pins:
+            for p in g.pins:
                 pin_map[p] = g.id
         for n in graph.nets:
             node_list = []
@@ -162,7 +162,7 @@ if __name__ == '__main__':
                     node_list.append(pin_map[pin])
             edges = combinations(node_list, 2)
             for edge in edges:
-                G.add_edge(edge[0]+num_nodes, edge[1]+num_nodes)'''
+                G.add_edge(edge[0]+num_nodes, edge[1]+num_nodes)
 
         #node_pairs = list(combinations(list(G.nodes()), 2)) # all possible node pairs
         # only add neg pair whose nodes are from the same subgraph
