@@ -26,7 +26,7 @@ class SupervisedGraphSage(nn.Module):
     def __init__(self, num_classes, enc):
         super(SupervisedGraphSage, self).__init__()
         self.enc = enc
-        self.xent = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([10]))
+        self.xent = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([20]))
         # pos_weight controls weight of "1" label in loss function
 
         self.weight = nn.Parameter(torch.FloatTensor(enc.embed_dim, enc.embed_dim))
@@ -75,6 +75,7 @@ def load_cora():
 
 def shuffle_list(*ls):
     l =list(zip(*ls))
+    random.seed(1234)
     random.shuffle(l)
     return zip(*l)
 
@@ -94,15 +95,19 @@ def main():
     agg2 = MeanAggregator(lambda nodes : enc1(nodes).t(), cuda=False)
     enc2 = Encoder(lambda nodes : enc1(nodes).t(), enc1.embed_dim, hidden_dim, adj_lists, agg2,
             base_model=enc1, gcn=False, cuda=False)
+    agg3 = MeanAggregator(lambda nodes : enc2(nodes).t(), cuda=False)
+    enc3 = Encoder(lambda nodes : enc2(nodes).t(), enc2.embed_dim, hidden_dim, adj_lists, agg3,
+            base_model=enc2, gcn=False, cuda=False)
     enc1.num_samples = 10
     enc2.num_samples = 10
+    enc3.num_samples = 10
 
-    graphsage = SupervisedGraphSage(hidden_dim, enc2)
+    graphsage = SupervisedGraphSage(hidden_dim, enc3)
     #graphsage.cuda()
 
     optimizer = torch.optim.Adam(filter(lambda p : p.requires_grad, graphsage.parameters()), lr=0.01, weight_decay=1e-5)
     times = []
-    epoch = 100
+    epoch = 5
     batch_size = 5120
     num_batch = len(train)//batch_size
     best = 1e9
@@ -121,13 +126,12 @@ def main():
     for x in test:
         test_pair1.append(x[0])
         test_pair2.append(x[1])
+    # shuffle training set
+    fused_train = [list(x) for x in shuffle_list(train_pair1,train_pair2,train_label)]
+    train_pair1 = fused_train[0]
+    train_pair2 = fused_train[1]
+    train_label = fused_train[2]
     for e in range(epoch):
-        # shuffle training set
-        fused_train = [list(x) for x in shuffle_list(train_pair1,train_pair2,train_label)]
-        train_pair1 = fused_train[0]
-        train_pair2 = fused_train[1]
-        train_label = fused_train[2]
-
         for i in range(num_batch):
             if i < num_batch - 1:
                 pair1 = train_pair1[i*batch_size: i*batch_size + batch_size]
@@ -185,9 +189,9 @@ def main():
             test_output = torch.sigmoid(graphsage.forward(pair1, pair2))
             pred = np.concatenate((pred, np.where(test_output.data.numpy() < 0.5, 0, 1)), axis=None)
             print("Inference on the {}-th chunk".format(j))
-    print("Test F1:", f1_score(np.asarray(test_label), pred, average="micro", labels=[1]))
-    print("Test Recall:", recall_score(np.asarray(test_label), pred, average="micro", labels=[1]))
-    print("Test Precision:", precision_score(np.asarray(test_label), pred, average="micro", labels=[1]))
+    #print("Test F1:", f1_score(np.asarray(test_label), pred, average="micro", labels=[1]))
+    print("True Positive Rate:", recall_score(np.asarray(test_label), pred, average="micro", labels=[1]))
+    #print("Test Precision:", precision_score(np.asarray(test_label), pred, average="micro", labels=[1]))
     print("False Positive Rate:", 1-recall_score(np.asarray(test_label), pred, average="micro", labels=[0]))
     plot_confusion_matrix(np.asarray(test_label), pred, np.array([0, 1]), title='Confusion matrix, without normalization')
 

@@ -163,11 +163,11 @@ if __name__ == '__main__':
                 G.add_edge(edge[0]+num_nodes, edge[1]+num_nodes)
                 sub_G.add_edge(edge[0]+num_nodes, edge[1]+num_nodes)
 
-        node_pairs = list(combinations(list(sub_G.nodes()), 2)) # all possible node pairs
-        random.seed(1)
-        random.shuffle(node_pairs)
+        node_pairs = list(sub_G.edges()) # all possible node pairs
+        #random.seed(1)
+        #random.shuffle(node_pairs)
         neg_pairs = []
-        neg_size = 20000000000
+        neg_size = 300000000
         for pair in node_pairs:
             if [pair[0]-num_nodes, pair[1]-num_nodes] in label:
                 continue
