@@ -25,7 +25,7 @@ class SupervisedGraphSage(nn.Module):
     def __init__(self, num_classes, enc):
         super(SupervisedGraphSage, self).__init__()
         self.enc = enc
-        self.xent = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([1.5]))
+        self.xent = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([2]))
 
         self.weight = nn.Parameter(torch.FloatTensor(num_classes, enc.embed_dim))
         init.xavier_uniform_(self.weight)
@@ -82,8 +82,8 @@ def main():
     agg2 = MeanAggregator(lambda nodes : enc1(nodes).t(), cuda=False)
     enc2 = Encoder(lambda nodes : enc1(nodes).t(), enc1.embed_dim, hidden_dim, adj_lists, agg2,
             base_model=enc1, gcn=False, cuda=False)
-    enc1.num_samples = 5
-    enc2.num_samples = 5
+    enc1.num_samples = 10
+    enc2.num_samples = 10
 
     graphsage = SupervisedGraphSage(1, enc2)
     #graphsage.cuda()
@@ -92,9 +92,9 @@ def main():
     #val = rand_indices[1000:1500]
     #test = rand_indices[400:]
 
-    optimizer = torch.optim.Adam(filter(lambda p : p.requires_grad, graphsage.parameters()), lr=0.001)
+    optimizer = torch.optim.Adam(filter(lambda p : p.requires_grad, graphsage.parameters()), lr=0.001, weight_decay=5e-4)
     times = []
-    epoch = 10
+    epoch = 1000
     batch_size = 512
     #num_batch = len(train)//batch_size
     num_batch = 1
@@ -102,6 +102,7 @@ def main():
     cnt_wait = 0
     patience = 20
     best_t = 0
+    random.shuffle(train)
     for e in range(epoch):
         for i in range(num_batch):
             #if i < num_batch-1:
